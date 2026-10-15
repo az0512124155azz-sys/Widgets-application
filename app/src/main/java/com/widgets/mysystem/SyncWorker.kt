@@ -15,12 +15,8 @@ object Sync {
 
 class SyncWorker(ctx: Context, p: WorkerParameters) : CoroutineWorker(ctx, p) {
     override suspend fun doWork(): Result {
-        val specs = Store.specs(applicationContext)
-        for (n in specs.keys()) {
-            val url = specs.getJSONObject(n).optJSONObject("source")?.optString("url") ?: ""
-            if (url.isBlank()) continue
-            try { Store.saveData(applicationContext, n, Store.http(url)) } catch (e: Exception) { }
-        }
+        try { Store.sync(applicationContext) } catch (e: Exception) { }
+        Store.refreshData(applicationContext)
         GenericWidget().updateAll(applicationContext)
         return Result.success()
     }
