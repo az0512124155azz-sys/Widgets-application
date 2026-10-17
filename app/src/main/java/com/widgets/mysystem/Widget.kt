@@ -22,7 +22,6 @@ import androidx.glance.action.ActionParameters
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.action.actionRunCallback
-import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.updateAll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -54,11 +53,10 @@ class GenericWidget : GlanceAppWidget() {
 fun Render(spec: JSONObject?, d: JSONObject) {
     if (spec == null) {
         Box(
-            GlanceModifier.fillMaxSize().background(Color(0xFF12141A)).cornerRadius(24.dp)
-                .clickable(actionStartActivity<MainActivity>()),
+            GlanceModifier.fillMaxSize().background(Color(0xFF12141A)).cornerRadius(24.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text("Tap to open the app and connect", style = TextStyle(color = ColorProvider(Color.White)))
+            Text("Open the MySystem app and tap Connect", style = TextStyle(color = ColorProvider(Color.White)))
         }
         return
     }
