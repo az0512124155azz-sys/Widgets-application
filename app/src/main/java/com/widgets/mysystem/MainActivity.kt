@@ -1,8 +1,10 @@
 package com.widgets.mysystem
 
 import android.app.Activity
+import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
+import android.content.Intent
 import android.os.Bundle
 import android.widget.*
 import androidx.glance.appwidget.updateAll
@@ -18,10 +20,32 @@ class MainActivity : Activity() {
         val root = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(40, 96, 40, 40) }
         val link = EditText(ctx).apply { hint = "Paste your link here"; setText(Store.link(ctx)) }
         val connect = Button(ctx).apply { text = "Connect and sync" }
-        val add = Button(ctx).apply { text = "Add widget to home screen" }
         val status = TextView(ctx).apply { setPadding(0, 16, 0, 16) }
-        val list = TextView(ctx)
-        fun refresh() { list.text = "Designs: " + Store.specs(ctx).keys().asSequence().joinToString(", ") }
+        val designs = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
+
+        fun pin(name: String) {
+            Store.prefs(ctx).edit().putString("pending", name).apply()
+            val mgr = AppWidgetManager.getInstance(ctx)
+            if (mgr.isRequestPinAppWidgetSupported) {
+                val cb = PendingIntent.getBroadcast(
+                    ctx, 0, Intent(ctx, PinReceiver::class.java),
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+                )
+                mgr.requestPinAppWidget(ComponentName(ctx, Receiver::class.java), null, cb)
+            } else status.text = "Long-press the home screen, choose Widgets and add this app."
+        }
+
+        fun refresh() {
+            designs.removeAllViews()
+            designs.addView(TextView(ctx).apply { text = "Tap a design to add it as a new widget:"; setPadding(0, 16, 0, 8) })
+            for (n in Store.specs(ctx).keys().asSequence().toList()) {
+                designs.addView(Button(ctx).apply {
+                    text = "Add widget: " + n
+                    setOnClickListener { pin(n) }
+                })
+            }
+        }
+
         fun doSync(save: Boolean) {
             status.text = "Syncing..."
             val text = link.text.toString()
@@ -36,15 +60,11 @@ class MainActivity : Activity() {
                 runOnUiThread { status.text = msg; refresh() }
             }.start()
         }
+
         connect.setOnClickListener { doSync(true) }
-        add.setOnClickListener {
-            val mgr = AppWidgetManager.getInstance(ctx)
-            if (mgr.isRequestPinAppWidgetSupported) mgr.requestPinAppWidget(ComponentName(ctx, Receiver::class.java), null, null)
-            else status.text = "Long-press the home screen, choose Widgets and add this app."
-        }
         refresh()
-        root.addView(TextView(ctx).apply { text = "1. Paste the link and tap Connect.\n2. Tap Add widget and pick a design.\nTap a widget any time to refresh it."; setPadding(0, 0, 0, 24) })
-        for (v in listOf<android.view.View>(link, connect, add, status, list)) root.addView(v)
+        root.addView(TextView(ctx).apply { text = "1. Paste the link and tap Connect.\n2. Tap a design below to add it to the home screen. Repeat for more widgets.\nTap a widget any time to refresh it."; setPadding(0, 0, 0, 24) })
+        for (v in listOf<android.view.View>(link, connect, status, designs)) root.addView(v)
         setContentView(ScrollView(ctx).apply { addView(root) })
         if (Store.link(ctx).isNotBlank()) doSync(false)
     }
