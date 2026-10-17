@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang='he' dir='rtl'>
+<head>
+<meta charset='utf-8'>
+<meta name='viewport' content='width=device-width,initial-scale=1,viewport-fit=cover'>
+<title>Widget Studio</title>
+<link rel='manifest' href='/manifest.webmanifest'>
+<link rel='icon' href='/icon.svg'>
+<link rel='apple-touch-icon' href='/icon-192.png'>
+<meta name='theme-color' content='#0b0d14'>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.5 system-ui,-apple-system,'Segoe UI',Arial,sans-serif;color:#e8eaf2;background:radial-gradient(1000px 500px at 85% -10%,#3b2a8a66,transparent),radial-gradient(800px 450px at -10% 8%,#0e749055,transparent),#0b0d14;min-height:100vh;padding:env(safe-area-inset-top) 0 48px}
+.wrap{max-width:720px;margin:auto;padding:16px}
+h1{font-size:24px;margin:8px 0 2px;background:linear-gradient(135deg,#a78bfa,#22d3ee);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:#8a93a6;margin:0 0 12px}
+.card{background:#ffffff0d;border:1px solid #ffffff1a;border-radius:20px;padding:16px;margin:12px 0;backdrop-filter:blur(8px)}
+.card h2{font-size:16px;margin:0 0 4px}
+.hint{color:#8a93a6;font-size:13px;margin:0 0 10px}
+.dot{width:10px;height:10px;border-radius:50%;background:#64748b;display:inline-block;margin-inline-end:6px}
+.dot.ok{background:#34d399;box-shadow:0 0 10px #34d399}.dot.bad{background:#f87171}
+pre,.mono{font-family:ui-monospace,Menlo,Consolas,monospace;direction:ltr;text-align:left}
+pre{background:#05060a;border:1px solid #ffffff14;border-radius:12px;padding:12px;margin:8px 0;font-size:12.5px;white-space:pre-wrap;word-break:break-all}
+button{font:inherit;border:0;border-radius:12px;padding:9px 14px;color:#fff;background:linear-gradient(135deg,#7c5cff,#22d3ee);cursor:pointer;font-weight:600}
+button.ghost{background:#ffffff14;color:#e8eaf2}button.sm{padding:5px 11px;font-size:13px}
+input,select{font:inherit;color:#fff;background:#05060a;border:1px solid #ffffff1f;border-radius:10px;padding:8px 10px;width:100%;min-width:0}
+input[type=color]{padding:2px;height:38px;width:48px;flex:none}
+.row{display:flex;gap:8px;align-items:center;margin:6px 0}.row>*{flex:1}.row>.fix{flex:none}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.wp{display:flex;gap:2px;align-items:center;justify-content:center;min-height:110px;width:100%;text-align:center}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
+.item{display:flex;flex-direction:column;gap:6px}
+#toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,20px);background:#111827;border:1px solid #ffffff22;padding:10px 16px;border-radius:12px;opacity:0;transition:.25s;pointer-events:none}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+<div class='wrap'>
+  <h1>Widget Studio</h1>
+  <p class='sub'><span id='dot' class='dot'></span><span id='st'>מתחבר...</span></p>
+  <div id='nokey' class='card' hidden>
+    <h2>הדבק את המפתח</h2>
+    <p class='hint'>המפתח (MCP_KEY) נשמר רק בדפדפן הזה.</p>
+    <div class='row'><input id='kin' class='mono' placeholder='key'><button class='fix' onclick='setkey()'>התחבר</button></div>
+  </div>
+  <div id='main' hidden>
+    <div class='card'><h2>1. חיבור ל-Claude / Grok</h2>
+      <p class='hint'>Settings, Connectors, Add custom connector, והדבק את הקישור:</p>
+      <pre id='conn'></pre><button onclick='copy(CONN)'>העתק קישור</button></div>
+    <div class='card'><h2>2. שליחת נתונים מהמערכת שלך</h2>
+      <p class='hint'>בחר שפה, העתק והדבק בקוד שלך. בכל הרצה הנתונים מתעדכנים ומופיעים בווידג'ט.</p>
+      <div class='tabs' id='tabs'></div><pre id='code'></pre><button onclick='copy(CUR)'>העתק קוד</button></div>
+    <div class='card'><h2>3. נתונים חיים</h2>
+      <p class='hint'>אלה הערכים שהווידג'טים מציגים. אפשר לערוך כאן ידנית.</p>
+      <div id='data'></div>
+      <div class='row'><input id='nk' class='mono' placeholder='מפתח'><input id='nv' class='mono' placeholder='ערך'><button class='fix sm' onclick='addv()'>הוסף</button></div></div>
+    <div class='card'><h2>4. ווידג'ט חדש</h2>
+      <div id='prev' style='margin-bottom:10px'></div>
+      <div id='form'>
+        <div class='row'><input id='f_name' placeholder='שם (באנגלית)' value='orders'><select id='f_style'><option value='big_number'>מספר גדול</option><option value='progress_card'>כרטיס התקדמות</option><option value='row_stats'>שורה</option><option value='minimal'>מינימלי</option></select></div>
+        <div class='row'><input id='f_title' placeholder='כותרת' value='ORDERS'><input id='f_sub' placeholder='שורת משנה' value='היום'></div>
+        <div class='row'><input id='f_value' list='keys' placeholder='ערך, למשל {orders}' value='{orders}'><input id='f_pr' list='keys' placeholder='התקדמות {goal}'></div>
+        <datalist id='keys'></datalist>
+        <div class='row'><input type='color' id='f_bg' value='#12141a' class='fix'><input type='color' id='f_ac' value='#22d3ee' class='fix'><input type='color' id='f_fg' value='#ffffff' class='fix'><span class='hint' style='margin:0'>רקע, הדגשה, טקסט</span></div>
+      </div>
+      <button onclick='create()'>צור ווידג'ט</button></div>
+    <div class='card'><h2>5. הווידג'טים שלי</h2><div id='ws' class='grid'></div></div>
+    <div class='card'><h2>6. בקשה מוכנה ל-AI</h2><pre id='ai' style='direction:rtl;text-align:right'></pre><button onclick='copy(AI)'>העתק</button></div>
+  </div>
+</div>
+<div id='toast'></div>
+<script>
+const $=s=>document.querySelector(s);
+let K=localStorage.getItem('k')||'';
+const hm=location.hash.match(/k=([^&]+)/);
+if(hm){K=decodeURIComponent(hm[1]);localStorage.setItem('k',K);history.replaceState(null,'',location.pathname)}
+const B=location.origin,H={'content-type':'application/json'};
+const q=p=>B+p+(p.includes('?')?'&':'?')+'key='+encodeURIComponent(K);
+const api=(p,o)=>fetch(q(p),o).then(r=>r.json());
+const call=(n,a)=>fetch(q('/api/mcp'),{method:'POST',headers:H,body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',params:{name:n,arguments:a}})}).then(r=>r.json()).then(j=>j.result.content[0].text);
+let W={},D={},TI=0,CUR='',CONN='',AI='',KS=[],WK=[];
+const num=v=>v.trim()!==''&&!isNaN(Number(v))?Number(v):v;
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/'/g,'&#39;');
+function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');setTimeout(()=>e.classList.remove('on'),2200)}
+function copy(t){navigator.clipboard.writeText(t).then(()=>toast('הועתק'))}
+function fill(t,d){return String(t==null?'':t).replace(/[{]([^}]+)[}]/g,(x,p)=>{let c=d;for(const k of p.split('.'))c=c==null?c:c[k];return c==null?'--':c})}
+function preview(s,d){
+  const items=(s.items||[]).map(i=>{
+    if(i.type==='spacer')return `<div style='height:${i.size||8}px;width:${i.size||8}px'></div>`;
+    if(i.type==='progress'){const v=Math.max(0,Math.min(1,parseFloat(fill(i.value,d))||0));return `<div style='height:6px;border-radius:3px;background:#ffffff33;width:100%'><div style='height:6px;border-radius:3px;width:${v*100}%;background:${esc(i.color||'#4FD1C5')}'></div></div>`}
+    return `<div style='font-size:${(i.size||14)*0.9}px;color:${esc(i.color||'#fff')};font-weight:${i.bold?700:400};line-height:1.15'>${esc(fill(i.text,d))}</div>`}).join('');
+  return `<div class='wp' style='background:${esc(s.bg||'#12141A')};border-radius:${s.radius==null?24:s.radius}px;padding:${s.padding||14}px;flex-direction:${s.layout==='row'?'row':'column'}'>${items}</div>`}
+function build(a){
+  const bg=a.bg||'#12141A',ac=a.accent||'#4FD1C5',fg=a.text_color||'#FFFFFF',mu='#8A93A6';
+  const T=(t,s,c,b)=>({type:'text',text:String(t),size:s,color:c,bold:!!b}),sp=s=>({type:'spacer',size:s});
+  const ti=a.title||'',v=a.value||'--',su=a.subtitle||'';let it,ly='column';
+  if(a.style==='minimal')it=[T(v,48,fg,1)];
+  else if(a.style==='progress_card')it=[T(ti,12,mu),sp(4),T(v,40,fg,1),sp(8),{type:'progress',value:String(a.progress||'0.5'),color:ac},sp(6),T(su,13,ac)];
+  else if(a.style==='row_stats'){ly='row';it=[T(v,38,ac,1),sp(12),T(ti+(su?' - '+su:''),14,fg)]}
+  else it=[T(ti,12,mu),T(v,46,fg,1),T(su,13,ac)];
+  return{name:a.name,bg,radius:24,padding:14,layout:ly,items:it.filter(i=>i.type!=='text'||i.text)}}
+function snippets(){
+  const ks=Object.keys(D).slice(0,3),o={};
+  (ks.length?ks:['orders','goal']).forEach((k,i)=>{o[k]=typeof D[k]==='number'?D[k]:(i?0.7:42)});
+  const u=B+'/api/data',js=JSON.stringify(o),qs=Object.keys(o).map(k=>k+'='+o[k]).join('&');
+  return{
+    'קישור':`${u}?key=${K}&${qs}`,
+    'cURL':`curl -X POST '${u}?key=${K}' -H 'Content-Type: application/json' -d '${js}'`,
+    'JavaScript':`await fetch('${u}?key=${K}', {
+  method: 'POST',
+  headers: {'Content-Type': 'application/json'},
+  body: JSON.stringify(${js})
+});`,
+    'Python':`import requests
+requests.post('${u}', params={'key': '${K}'}, json=${js})`,
+    'PHP':`file_get_contents('${u}?key=${K}&${qs}');`}}
+function tab(i){TI=i;render()}
+function renderData(){
+  KS=Object.keys(D);
+  $('#data').innerHTML=KS.length?KS.map((k,i)=>`<div class='row'><input class='mono' value='${esc(k)}' readonly><input class='mono' id='v_${i}' value='${esc(D[k])}'><button class='fix sm' onclick='setv(${i})'>שמור</button></div>`).join(''):`<p class='hint'>עדיין אין נתונים. שלח קישור או קוד מסעיף 2, או הוסף ערך למטה.</p>`}
+function renderWs(){
+  WK=Object.keys(W);
+  $('#ws').innerHTML=WK.length?WK.map((k,i)=>`<div class='item'>${preview(W[k],D)}<div class='row'><span class='mono'>${esc(k)}</span><button class='ghost sm fix' onclick='delw(${i})'>מחק</button></div></div>`).join(''):`<p class='hint'>אין עדיין ווידג'טים.</p>`}
+function F(){const g=i=>$('#'+i).value;return{name:g('f_name')||'widget',title:g('f_title'),value:g('f_value'),subtitle:g('f_sub'),style:g('f_style'),bg:g('f_bg'),accent:g('f_ac'),text_color:g('f_fg'),progress:g('f_pr')}}
+function renderPrev(){$('#prev').innerHTML=preview(build(F()),D)}
+function render(){
+  CONN=B+'/api/mcp?key='+K;$('#conn').textContent=CONN;
+  const S=snippets(),names=Object.keys(S);
+  $('#tabs').innerHTML=names.map((n,i)=>`<button class='sm ${i===TI?'':'ghost'}' onclick='tab(${i})'>${n}</button>`).join('');
+  CUR=S[names[TI]];$('#code').textContent=CUR;
+  renderData();renderWs();renderPrev();
+  $('#keys').innerHTML=Object.keys(D).map(k=>`<option value='{${esc(k)}}'>`).join('');
+  AI=`יש לך גישה ל-MCP בשם widget-studio. קרא קודם את הכלי how_to_create_widgets.
+הנתונים הזמינים כרגע: ${Object.keys(D).join(', ')||'עדיין אין'}.
+צור לי ווידג'ט בסגנון ____ שמציג ____, והשתמש בכלי create_widget.`;
+  $('#ai').textContent=AI}
+async function load(){
+  try{const r=await api('/api/widgets');if(r.error)throw new Error(r.error);W=r.widgets||{};D=r.data||{};
+    $('#dot').className='dot ok';$('#st').textContent='מחובר לשרת';$('#main').hidden=false;$('#nokey').hidden=true;
+    if(!document.activeElement||document.activeElement.tagName!=='INPUT')render()}
+  catch(e){$('#dot').className='dot bad';$('#st').textContent='לא מחובר: '+e.message;if(String(e.message).includes('unauthorized')){$('#nokey').hidden=false;$('#main').hidden=true}}}
+function setkey(){K=$('#kin').value.trim();localStorage.setItem('k',K);load()}
+async function setv(i){await api('/api/data',{method:'POST',headers:H,body:JSON.stringify({[KS[i]]:num($('#v_'+i).value)})});toast('נשמר');load()}
+async function addv(){const k=$('#nk').value.trim();if(!k)return;await api('/api/data',{method:'POST',headers:H,body:JSON.stringify({[k]:num($('#nv').value)})});$('#nk').value='';$('#nv').value='';toast('נוסף');load()}
+async function delw(i){await call('delete_widget',{name:WK[i]});toast('נמחק');load()}
+async function create(){await call('create_widget',F());toast('נוצר. באפליקציה בטלפון: Sync');load()}
+$('#form').addEventListener('input',renderPrev);
+if(K)load();else{$('#nokey').hidden=false;$('#dot').className='dot bad';$('#st').textContent='חסר מפתח'}
+setInterval(()=>{if(K)load()},20000);
+if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js');
+</script>
+</body>
+</html>

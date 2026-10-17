@@ -8,6 +8,7 @@ import java.net.URL
 import java.net.URLEncoder
 
 object Store {
+
     fun prefs(c: Context) = c.getSharedPreferences("store", Context.MODE_PRIVATE)
 
     fun specs(c: Context): JSONObject = try { JSONObject(prefs(c).getString("specs", "{}")!!) } catch (e: Exception) { JSONObject() }
@@ -48,15 +49,41 @@ object Store {
         val key = prefs(c).getString("key", "")!!.trim()
         if (base.isBlank()) throw Exception("Enter the server URL")
         val r = JSONObject(http(base + "/api/widgets?key=" + URLEncoder.encode(key, "UTF-8")))
-        prefs(c).edit().putString("specs", r.getJSONObject("widgets").toString()).apply()
+        prefs(c).edit().putString("specs", r.getJSONObject("widgets").toString())
+            .putString("server_data", (r.optJSONObject("data") ?: JSONObject()).toString()).apply()
     }
 
     /** Fetch each design's data source. */
     fun refreshData(c: Context) {
         val s = specs(c)
+        val sd = prefs(c).getString("server_data", "{}")!!
         for (n in s.keys()) {
             val url = s.getJSONObject(n).optJSONObject("source")?.optString("url") ?: ""
-            if (url.isNotBlank()) try { saveData(c, n, http(url)) } catch (e: Exception) { }
+            if (url.isBlank()) saveData(c, n, sd)
+            else try { saveData(c, n, http(url)) } catch (e: Exception) { }
         }
+    }
+
+    /** Accepts the full connector link (https://host/api/mcp?key=KEY) or just a base URL. */
+    fun saveLink(c: Context, link: String) {
+        val u = java.net.URI(link.trim())
+        val base = u.scheme + "://" + u.host
+        val key = (u.rawQuery ?: "").split("&").firstOrNull { it.startsWith("key=") }?.substring(4) ?: ""
+        prefs(c).edit().putString("server", base).putString("key", java.net.URLDecoder.decode(key, "UTF-8")).apply()
+    }
+
+    fun link(c: Context): String {
+        val s = prefs(c).getString("server", "") ?: ""
+        return if (s.isBlank()) "" else s + "/api/mcp?key=" + (prefs(c).getString("key", "") ?: "")
+    }
+
+    /** A ready-made design so a widget works right after install. */
+    fun seedDemo(c: Context) {
+        if (specs(c).length() > 0) return
+        val demo = JSONObject("""{"name":"demo","bg":"#12141A","radius":24,"padding":14,"layout":"column","items":[
+            {"type":"text","text":"MY SYSTEM","size":12,"color":"#8A93A6"},
+            {"type":"text","text":"{orders}","size":44,"color":"#FFFFFF","bold":true},
+            {"type":"text","text":"tap to refresh","size":12,"color":"#4FD1C5"}]}""")
+        prefs(c).edit().putString("specs", JSONObject().put("demo", demo).toString()).apply()
     }
 }

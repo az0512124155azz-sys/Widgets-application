@@ -18,6 +18,13 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
+import androidx.glance.action.ActionParameters
+import androidx.glance.action.clickable
+import androidx.glance.appwidget.action.ActionCallback
+import androidx.glance.appwidget.action.actionRunCallback
+import androidx.glance.appwidget.updateAll
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -43,6 +50,7 @@ fun Render(spec: JSONObject?, d: JSONObject) {
     val items = spec.optJSONArray("items") ?: JSONArray()
     val mod = GlanceModifier.fillMaxSize().background(col(spec.optString("bg", "#12141A")))
         .cornerRadius(spec.optInt("radius", 24).dp).padding(spec.optInt("padding", 14).dp)
+        .clickable(actionRunCallback<RefreshAction>())
     if (spec.optString("layout", "column") == "row") {
         Row(modifier = mod, verticalAlignment = Alignment.Vertical.CenterVertically, horizontalAlignment = Alignment.Horizontal.CenterHorizontally) {
             for (i in 0 until items.length()) Item(items.getJSONObject(i), d)
@@ -72,5 +80,15 @@ fun Item(o: JSONObject, d: JSONObject) {
                 fontWeight = if (o.optBoolean("bold")) FontWeight.Bold else FontWeight.Normal
             )
         )
+    }
+}
+
+class RefreshAction : ActionCallback {
+    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+        withContext(Dispatchers.IO) {
+            try { Store.sync(context) } catch (e: Exception) { }
+            Store.refreshData(context)
+        }
+        GenericWidget().updateAll(context)
     }
 }
