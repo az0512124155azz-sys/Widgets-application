@@ -22,6 +22,7 @@ import androidx.glance.action.ActionParameters
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.action.actionRunCallback
+import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.updateAll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -33,17 +34,31 @@ fun col(s: String): Color = try { Color(android.graphics.Color.parseColor(s)) } 
 class GenericWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val wid = GlanceAppWidgetManager(context).getAppWidgetId(id)
-        val spec = Store.assigned(context, wid)
-        val data = if (spec != null) Store.data(context, spec.optString("name")) else JSONObject()
-        provideContent { Render(spec, data) }
+        var spec = Store.assigned(context, wid)
+        val all = Store.specs(context)
+        val first = all.keys().asSequence().firstOrNull { it != "demo" }
+        if (first != null && (spec == null || spec?.optString("name") == "demo")) {
+            Store.assign(context, wid, first)
+            spec = all.optJSONObject(first)
+        } else if (spec == null) {
+            val any = all.keys().asSequence().firstOrNull()
+            if (any != null) { Store.assign(context, wid, any); spec = all.optJSONObject(any) }
+        }
+        val finalSpec = spec
+        val data = if (finalSpec != null) Store.data(context, finalSpec.optString("name")) else JSONObject()
+        provideContent { Render(finalSpec, data) }
     }
 }
 
 @Composable
 fun Render(spec: JSONObject?, d: JSONObject) {
     if (spec == null) {
-        Box(GlanceModifier.fillMaxSize().background(Color(0xFF12141A)), contentAlignment = Alignment.Center) {
-            Text("Open the app", style = TextStyle(color = ColorProvider(Color.White)))
+        Box(
+            GlanceModifier.fillMaxSize().background(Color(0xFF12141A)).cornerRadius(24.dp)
+                .clickable(actionStartActivity<MainActivity>()),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("Tap to open the app and connect", style = TextStyle(color = ColorProvider(Color.White)))
         }
         return
     }
